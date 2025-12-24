@@ -1,0 +1,19 @@
+[project]
+name = "posekitmodel"
+version = "0.1.0"
+authors = [{ name = "surinrasu", email = "srs@surindaku.dev" }]
+requires-python = ">=3.12,<3.15"
+
+[tool.poetry]
+packages = [{ include = "pkmodel" }]
+
+[tool.poetry.scripts]
+pkmodel = "pkmodel.cli:main"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.dependencies]
+opencv-python = "^4.12.0.88"
+numpy = ">=2,<2.3.0"

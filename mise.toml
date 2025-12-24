@@ -2,3 +2,4 @@
 python = "3.12"
 swift = "latest"
 "spm:yonaskolb/Mint" = { version = "latest", postinstall = "mint bootstrap --link" }
+poetry = { version = "latest", pyproject = "{{config_root}}/PoseKitModel/pyproject.toml" }
