@@ -5,6 +5,8 @@ from pathlib import Path
 from typing import List, Optional
 
 COMMANDS = {
+    "train": ("train.py", "Train PoseKitModel"),
+    "evaluate": ("evaluate.py", "Evaluate PoseKitModel"),
     "data-tools": ("data_tools.py", "Dataset utilities"),
     "prepare-coco": ("prepare_coco.py", "Prepare COCO labels"),
 }
