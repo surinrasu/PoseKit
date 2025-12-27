@@ -7,6 +7,7 @@ from typing import List, Optional
 COMMANDS = {
     "train": ("train.py", "Train PoseKitModel"),
     "evaluate": ("evaluate.py", "Evaluate PoseKitModel"),
+    "generate-coreml": ("generate_coreml.py", "Convert checkpoint to Core ML"),
     "data-tools": ("data_tools.py", "Dataset utilities"),
     "prepare-coco": ("prepare_coco.py", "Prepare COCO labels"),
 }
