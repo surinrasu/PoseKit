@@ -1,5 +1,116 @@
+[env]
+MINT_PATH = "{{config_root}}/.mint"
+MINT_LINK_PATH = "{{env.MINT_PATH}}/bin"
+_.path = ["{{env.MINT_LINK_PATH}}"]
+MISE_POETRY_AUTO_INSTALL = "true"
+
+CFG_CFG_VERBOSE = "true"
+
+CFG_NUM_CLASSES = "17"
+CFG_WIDTH_MULT = "1.0"
+CFG_IMG_SIZE = "192"
+
+CFG_IMG_PATH = "{{config_root}}/dataset/imgs"
+CFG_TRAIN_LABEL_PATH = "{{config_root}}/dataset/train.json"
+CFG_VAL_LABEL_PATH = "{{config_root}}/dataset/val.json"
+CFG_BALANCE_DATA = "false"
+CFG_SAVE_DIR = "{{config_root}}/PoseKitModel/output/"
+
+CFG_GPU_ID = "mps"
+CFG_NUM_WORKERS = "8"
+CFG_RANDOM_SEED = "42"
+
+CFG_LOG_INTERVAL = "10"
+CFG_LOG_BATCH_ACC = "true"
+
+CFG_LEARNING_RATE = "0.001"
+CFG_BATCH_SIZE = "64"
+CFG_EPOCHS = "120"
+CFG_OPTIMIZER = "Adam"
+CFG_SCHEDULER = "default-0.5-5"
+CFG_WEIGHT_DECAY = "0.0005"
+CFG_CLIP_GRADIENT = "5"
+
+CFG_PIN_MEMORY = "false"
+CFG_ACC_KPS_TH = "0.3"
+CFG_EARLY_STOP_PATIENCE = "15"
+CFG_EARLY_STOP_MIN_DELTA = "0.0"
+CFG_MAX_TRAIN_BATCHES = "0"
+CFG_USE_DATA_AUG = "true"
+CFG_RESUME_PATH = ""
+CFG_RESUME_OPTIMIZER = "true"
+CFG_RESUME_SCHEDULER = "true"
+CFG_RESUME_STRICT = "true"
+CFG_SAVE_LAST = "true"
+
+CFG_TEST_IMG_PATH = "{{config_root}}/dataset/test/imgs"
+CFG_EVAL_IMG_PATH = "{{config_root}}/dataset/eval/imgs"
+CFG_EVAL_LABEL_PATH = "{{config_root}}/dataset/eval/label.json"
+
+CFG_EVAL_WEIGHTS = "{{config_root}}/PoseKitModel/output/last.pth"
+
 [tools]
 python = "3.12"
-swift = "latest"
 "spm:yonaskolb/Mint" = { version = "latest", postinstall = "mint bootstrap --link" }
+swift = "latest"
 poetry = { version = "latest", pyproject = "{{config_root}}/PoseKitModel/pyproject.toml" }
+
+[tasks.get-coco17]
+usage = 'arg <path> help="Path to save the COCO 2017 dataset" default="{{config_root}}/coco17"'
+dir = '{{config_root}}/PoseKitModel'
+run = 'curl -fL -o "${usage_path?}" https://www.kaggle.com/api/v1/datasets/download/awsaf49/coco-2017-dataset && tar -xf "${usage_path?}" --remove-files'
+
+[tasks.prepare-coco]
+usage = '''
+arg "<train_img_dir>" help="COCO train image directory" default="{{config_root}}/coco2017/train2017"
+arg "<train_labels_path>" help="COCO train annotations JSON" default="{{config_root}}/coco2017/annotations/person_keypoints_train2017.json"
+arg "<train_output_name>" help="Output train labels JSON" default="{{env.CFG_TRAIN_LABEL_PATH}}"
+arg "<val_img_dir>" help="COCO val image directory" default="{{config_root}}/coco2017/val2017"
+arg "<val_labels_path>" help="COCO val annotations JSON" default="{{config_root}}/coco2017/annotations/person_keypoints_val2017.json"
+arg "<val_output_name>" help="Output val labels JSON" default="{{env.CFG_VAL_LABEL_PATH}}"
+arg "<output_img_dir>" help="Output image directory" default="{{env.CFG_IMG_PATH}}"
+arg "<expand_ratio>" help="Expand ratio" default="1.0"
+'''
+dir = '{{config_root}}/PoseKitModel'
+run = 'pkmodel prepare-coco --train-img-dir "${usage_train_img_dir?}" --train-labels-path "${usage_train_labels_path?}" --train-output-name "${usage_train_output_name?}" --val-img-dir "${usage_val_img_dir?}" --val-labels-path "${usage_val_labels_path?}" --val-output-name "${usage_val_output_name?}" --output-img-dir "${usage_output_img_dir?}" --expand-ratio "${usage_expand_ratio?}"'
+
+[tasks.get-aist]
+usage = 'arg <path> help="Path to save the AIST dataset" default="{{config_root}}/aist/imgs"'
+dir = '{{config_root}}/PoseKitModel'
+run = 'pkmodel data-tools extract-frames --url-file {{config_root}}/aist/aist.txt --out-dir "${usage_path?}" --keyframes 3 --flat'
+
+[tasks.get-yoga82]
+usage = 'arg <path> help="Path to save the Yoga-82 dataset" default="{{config_root}}/yoga82/imgs"'
+dir = '{{config_root}}/PoseKitModel'
+run = 'xargs -n 1 -P 8 bash -c "d=\"\$1\"; u=\"\$2\"; curl -fsL -O --output-dir \"\$d\" --retry 3 --retry-delay 1 \"\$u\" || exit 0; f=\"\$d/\$(basename \"\${u%%\?*}\")\"; m=\$(file -b --mime-type -- \"\$f\" 2>/dev/null || echo \"\"); case \"\$m\" in image/*) : ;; *) rm -f -- \"\$f\" ;; esac" _ "${usage_path}" < {{config_root}}/yoga82/yoga82.txt'
+
+[tasks.split-dataset]
+usage = '''
+arg "<json>" help="Input JSON file with dataset annotations" default="{{config_root}}/dataset/label.json"
+arg "<train>" help="Output path for training set JSON" default="{{env.CFG_TRAIN_LABEL_PATH}}"
+arg "<val>" help="Output path for validation set JSON" default="{{env.CFG_VAL_LABEL_PATH}}"
+arg "<ratio>" help="Validation set ratio (e.g., 0.2 for 20%)" default="0.2"
+'''
+dir = '{{config_root}}/PoseKitModel'
+run = 'pkmodel data-tools split-json --json "${usage_json?}" --train-out "${usage_train?}" --val-out "${usage_val?}" --val-ratio "${usage_ratio?}" --shuffle'
+
+[tasks.train]
+dir = '{{config_root}}/PoseKitModel'
+run = 'ulimit -n 65536 && pkmodel train'
+
+[tasks.train1]
+dir = '{{config_root}}/PoseKitModel'
+run = 'CFG_EPOCHS=1 pkmodel train'
+
+[tasks.evaluate]
+usage = 'arg "<weights>" help="Path to .pth weights/checkpoint" default="{{env.CFG_EVAL_WEIGHTS}}"'
+dir = '{{config_root}}/PoseKitModel'
+run = 'pkmodel evaluate --weights "${usage_weights?}"'
+
+[tasks.generate-coreml]
+usage = '''
+arg "<weights>" help="Path to the trained model weights" default="{{env.CFG_EVAL_WEIGHTS}}"
+arg "<output>" help="Output path for the Core ML model" default="{{config_root}}/PoseKitModel/output/last.mlpackage"
+'''
+dir = '{{config_root}}/PoseKitModel'
+run = 'pkmodel generate-coreml --weights "${usage_weights}" --output "${usage_output}"'
