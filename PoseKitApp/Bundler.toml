@@ -1,0 +1,9 @@
+format_version = 2
+
+[apps.PoseKitApp]
+identifier = 'dev.surindaku.PoseKitApp'
+product = 'PoseKitApp'
+version = '0.1.0'
+
+[apps.PoseKitApp.plist]
+NSCameraUsageDescription = 'PoseKitApp uses the camera for AR capture and pose estimation.'

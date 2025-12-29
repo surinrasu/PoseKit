@@ -55,6 +55,15 @@ python = "3.12"
 swift = "latest"
 poetry = { version = "latest", pyproject = "{{config_root}}/PoseKitModel/pyproject.toml" }
 
+[tasks.list-devices]
+dir = '{{config_root}}/PoseKitApp'
+run = "swift-bundler devices list"
+
+[tasks.build]
+usage = 'arg "<device>" help="Destination the app will run on" default="iPhone"'
+dir = '{{config_root}}/PoseKitApp'
+run = 'swift-bundler bundle --device "${usage_device?}"'
+
 [tasks.get-coco17]
 usage = 'arg <path> help="Path to save the COCO 2017 dataset" default="{{config_root}}/coco17"'
 dir = '{{config_root}}/PoseKitModel'
