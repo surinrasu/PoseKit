@@ -12,7 +12,10 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "PoseKitApp",
-            dependencies: []
+            dependencies: [],
+            resources: [
+                .copy("Resources/Models/pkmodel.mlmodelc")
+            ]
         )
     ]
 )
