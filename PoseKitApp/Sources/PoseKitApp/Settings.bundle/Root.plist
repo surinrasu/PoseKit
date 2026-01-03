@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>PreferenceSpecifiers</key>
+  <array>
+    <dict>
+      <key>Type</key>
+      <string>PSGroupSpecifier</string>
+      <key>Title</key>
+      <string></string>
+      <key>FooterText</key>
+      <string>Minimum confidence required to accept a joint. Lower values keep more joints but add noise.</string>
+    </dict>
+    <dict>
+      <key>Type</key>
+      <string>PSSliderSpecifier</string>
+      <key>Title</key>
+      <string>Min Keypoint Score</string>
+      <key>Key</key>
+      <string>minKeypointScore</string>
+      <key>DefaultValue</key>
+      <real>0.3</real>
+      <key>MinimumValue</key>
+      <real>0</real>
+      <key>MinimumValueImage</key>
+      <string>slider_min</string>
+      <key>MaximumValue</key>
+      <real>1</real>
+      <key>MaximumValueImage</key>
+      <string>slider_max</string>
+    </dict>
+    <dict>
+      <key>Type</key>
+      <string>PSGroupSpecifier</string>
+      <key>Title</key>
+      <string></string>
+    </dict>
+    <dict>
+      <key>Type</key>
+      <string>PSMultiValueSpecifier</string>
+      <key>Title</key>
+      <string>Target FPS</string>
+      <key>Key</key>
+      <string>targetFPS</string>
+      <key>DefaultValue</key>
+      <integer>30</integer>
+      <key>Values</key>
+      <array>
+        <integer>15</integer>
+        <integer>30</integer>
+      </array>
+      <key>Titles</key>
+      <array>
+        <string>15</string>
+        <string>30</string>
+      </array>
+    </dict>
+    <dict>
+      <key>Type</key>
+      <string>PSChildPaneSpecifier</string>
+      <key>Title</key>
+      <string>Depth Source</string>
+      <key>File</key>
+      <string>DepthSource</string>
+    </dict>
+    <dict>
+      <key>Type</key>
+      <string>PSMultiValueSpecifier</string>
+      <key>Title</key>
+      <string>Depth Confidence Mode</string>
+      <key>Key</key>
+      <string>depthConfidenceMode</string>
+      <key>DefaultValue</key>
+      <integer>1</integer>
+      <key>Values</key>
+      <array>
+        <integer>0</integer>
+        <integer>1</integer>
+        <integer>2</integer>
+      </array>
+      <key>Titles</key>
+      <array>
+        <string>Strict</string>
+        <string>Balanced</string>
+        <string>Lenient</string>
+      </array>
+    </dict>
+    <dict>
+      <key>Type</key>
+      <string>PSChildPaneSpecifier</string>
+      <key>Title</key>
+      <string>Overlay Style</string>
+      <key>File</key>
+      <string>OverlayStyle</string>
+    </dict>
+    <dict>
+      <key>Type</key>
+      <string>PSGroupSpecifier</string>
+      <key>Title</key>
+      <string></string>
+      <key>FooterText</key>
+      <string>Show warnings for low-confidence or out-of-frame joints.</string>
+    </dict>
+    <dict>
+      <key>Type</key>
+      <string>PSToggleSwitchSpecifier</string>
+      <key>Title</key>
+      <string>Show Confidence Banner</string>
+      <key>Key</key>
+      <string>showConfidenceBanner</string>
+      <key>DefaultValue</key>
+      <true/>
+    </dict>
+  </array>
+  <key>StringsTable</key>
+  <string>Root</string>
+</dict>
+</plist>

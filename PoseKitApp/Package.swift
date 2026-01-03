@@ -14,6 +14,7 @@ let package = Package(
             name: "PoseKitApp",
             dependencies: [],
             resources: [
+                .copy("Settings.bundle"),
                 .copy("Resources/Models/pkmodel.mlmodelc")
             ]
         )

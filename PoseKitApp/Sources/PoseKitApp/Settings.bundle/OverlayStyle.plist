@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>PreferenceSpecifiers</key>
+  <array>
+    <dict>
+      <key>Type</key>
+      <string>PSGroupSpecifier</string>
+      <key>Title</key>
+      <string></string>
+    </dict>
+    <dict>
+      <key>Type</key>
+      <string>PSRadioGroupSpecifier</string>
+      <key>Title</key>
+      <string>Overlay Style</string>
+      <key>Key</key>
+      <string>overlayStyle</string>
+      <key>DefaultValue</key>
+      <integer>1</integer>
+      <key>Values</key>
+      <array>
+        <integer>0</integer>
+        <integer>1</integer>
+        <integer>2</integer>
+      </array>
+      <key>Titles</key>
+      <array>
+        <string>Size Only</string>
+        <string>Size + Alpha</string>
+        <string>Size + Alpha + Mini 3D</string>
+      </array>
+    </dict>
+    <dict>
+      <key>Type</key>
+      <string>PSGroupSpecifier</string>
+      <key>Title</key>
+      <string></string>
+      <key>FooterText</key>
+      <string>Size Only uses a fixed alpha. Size + Alpha fades joints based on depth. The Mini 3D option adds a small 3D preview in Capture.</string>
+    </dict>
+  </array>
+  <key>StringsTable</key>
+  <string>OverlayStyle</string>
+</dict>
+</plist>

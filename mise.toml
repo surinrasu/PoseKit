@@ -64,6 +64,38 @@ usage = 'arg "<device>" help="Destination the app will run on" default="iPhone"'
 dir = '{{config_root}}/PoseKitApp'
 run = 'swift-bundler bundle --device "${usage_device?}"'
 
+[tasks.add-settings]
+usage = 'arg "<bundle>" help="Path to .app bundle" default="{{config_root}}/PoseKitApp/.build/bundler/PoseKitApp.app"'
+dir = '{{config_root}}/PoseKitApp'
+run = 'bundle="${usage_bundle?}" && cp -R "$(find "$bundle" -mindepth 2 -maxdepth 2 -path "${bundle}/*.bundle/Settings.bundle" -print -quit)" "${bundle}/Settings.bundle"'
+
+[tasks.resign]
+usage = '''
+arg "<bundle>" help="Path to .app bundle" default="{{config_root}}/PoseKitApp/.build/bundler/PoseKitApp.app"
+arg "<indentity>" help="Code signing identity" default="Apple Development: appleid@surindaku.dev (VLAP537555)"
+'''
+dir = '{{config_root}}/PoseKitApp'
+run = 'codesign --force --sign "${usage_identity?}" --generate-entitlement-der --preserve-metadata=entitlements --deep "${usage_bundle?}"'
+
+[tasks.run-app]
+usage = 'arg "<device>" help="Destination to run the app" default="iPhone"'
+dir = '{{config_root}}/PoseKitApp'
+run = 'swift-bundler run --skip-build --device "${usage_device?}"'
+
+[tasks.run]
+usage = '''
+arg "<device>" help="Destination the app will run on" default="iPhone"
+arg "<bundle>" help="Path to .app bundle" default="{{config_root}}/PoseKitApp/.build/bundler/PoseKitApp.app"
+arg "<identity>" help="Code signing identity" default="Apple Development: appleid@surindaku.dev (VLAP537555)"
+'''
+dir = '{{config_root}}/PoseKitApp'
+run = '''
+mise run build "${usage_device?}"
+mise run add-settings "${usage_bundle?}"
+mise run resign "${usage_bundle?}" "${usage_identity?}"
+mise run run-app "${usage_device?}"
+'''
+
 [tasks.get-coco17]
 usage = 'arg <path> help="Path to save the COCO 2017 dataset" default="{{config_root}}/coco17"'
 dir = '{{config_root}}/PoseKitModel'
@@ -123,3 +155,11 @@ arg "<output>" help="Output path for the Core ML model" default="{{config_root}}
 '''
 dir = '{{config_root}}/PoseKitModel'
 run = 'pkmodel generate-coreml --weights "${usage_weights}" --output "${usage_output}"'
+
+[tasks.compile-coreml]
+usage = '''
+arg "<package>" help="Path to the Core ML model" default="{{config_root}}/PoseKitModel/output/last.mlpackage"
+arg "<output>" help="Output path" default="{{config_root}}/PoseKitApp/Sources/PoseKitApp/Resources/Models/pkmodel.mlmodelc"
+'''
+dir = '{{config_root}}/PoseKitModel'
+run = 'xcrun coremlc compile "${usage_package?}" "${usage_out}"'

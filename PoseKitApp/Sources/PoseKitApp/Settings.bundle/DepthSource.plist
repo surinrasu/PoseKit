@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>PreferenceSpecifiers</key>
+  <array>
+    <dict>
+      <key>Type</key>
+      <string>PSGroupSpecifier</string>
+      <key>Title</key>
+      <string></string>
+    </dict>
+    <dict>
+      <key>Type</key>
+      <string>PSRadioGroupSpecifier</string>
+      <key>Title</key>
+      <string>Depth Source</string>
+      <key>Key</key>
+      <string>depthSource</string>
+      <key>DefaultValue</key>
+      <integer>0</integer>
+      <key>Values</key>
+      <array>
+        <integer>0</integer>
+        <integer>1</integer>
+      </array>
+      <key>Titles</key>
+      <array>
+        <string>sceneDepth</string>
+        <string>smoothedSceneDepth</string>
+      </array>
+    </dict>
+    <dict>
+      <key>Type</key>
+      <string>PSGroupSpecifier</string>
+      <key>Title</key>
+      <string></string>
+      <key>FooterText</key>
+      <string>sceneDepth provides the raw depth stream for faster response. smoothedSceneDepth reduces noise but can introduce slight lag.</string>
+    </dict>
+  </array>
+  <key>StringsTable</key>
+  <string>DepthSource</string>
+</dict>
+</plist>
