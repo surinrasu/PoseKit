@@ -90,6 +90,14 @@ struct CaptureView: View {
                 viewModel.updateConfig(preferences.config)
             }
         }
+        .overlay(alignment: .topTrailing) {
+            if let output = viewModel.output, output.overlayStyle == 2 {
+                Pose3DSceneView(frame: output.frame)
+                    .frame(width: 140, height: 200)
+                    .cornerRadius(12)
+                    .padding()
+            }
+        }
         #if DEBUG
         .overlay(alignment: .topLeading) {
             Text(String(format: "FPS: %.1f", viewModel.debugFPS))
