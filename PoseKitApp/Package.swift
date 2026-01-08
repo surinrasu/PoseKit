@@ -17,6 +17,10 @@ let package = Package(
                 .copy("Settings.bundle"),
                 .copy("Resources/Models/pkmodel.mlmodelc")
             ]
+        ),
+        .testTarget(
+            name: "PoseKitAppTests",
+            dependencies: ["PoseKitApp"]
         )
     ]
 )
