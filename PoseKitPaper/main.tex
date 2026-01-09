@@ -1,0 +1,130 @@
+\documentclass[11pt,a4paper]{ctexart}
+
+\usepackage{geometry}
+\geometry{margin=1in}
+\usepackage{amsmath,amssymb,bm}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{siunitx}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  citecolor=blue,
+  urlcolor=blue
+}
+
+\title{PoseKit：面向移动设备的轻量级 RGB-D 三维人体姿态估计系统}
+\date{2026-01-16}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+移动端实时姿态估计需要在精度、延迟与能耗之间取得平衡。PoseKit 以 MobileNetV2 风格骨干网络为核心，通过深度可分离卷积与倒残差结构降低计算量\cite{Sandler2018MobileNetV2,Howard2017MobileNets,Chollet2017Xception}，并采用网络内静态张量预测 + 图外解码的工程路径，将非连续控制流操作（如 argmax 与动态索引）从部署图中移出，以提升移动端推理框架的可优化性\cite{Zhou2019CenterNet,CoreMLDocs,CoreMLToolsMLProgram}。在三维恢复上，系统采用两阶段策略：先进行二维关键点定位，再利用后置深度传感器提供的深度图与相机内参完成反投影得到三维关节坐标\cite{ARDepthData,HartleyZisserman2003MVG}。此外，本文给出输入对齐与尺度归一化、异构硬件（CPU/GPU/NPU）任务划分、iOS 部署（Core ML/ML Program/ANE）与模型压缩（FP16/量化/剪枝/蒸馏）的实现要点\cite{coremltools,MLNeuralEngineComputeDevice,Jacob2018Quantization,Han2016DeepCompression,Hinton2015Distill}，并讨论在无深度传感器与跨平台部署场景下的适配策略。
+\end{abstract}
+
+\textbf{关键词：}移动端推理；人体姿态估计；深度可分离卷积；RGB-D 融合；Core ML；反投影
+
+\section{引言}
+人体姿态估计在健身指导、动作评估、增强现实交互与可穿戴感知中具有重要应用价值。移动设备端的部署要求模型具备低延迟与低能耗，同时在复杂光照与背景下仍保持稳定的关键点定位精度。传统高精度姿态网络常依赖较大骨干与高分辨率特征表征（例如多阶段堆叠结构或高分辨率并行分支），在移动端难以直接满足实时预算\cite{Newell2016Hourglass,Wei2016CPM,Sun2019HRNet}。与此同时，若在网络中直接回归三维关节坐标，往往需要更多容量与更复杂的监督信号，且三维标注成本高、域差异显著。
+
+PoseKit 的核心设计思想是将“二维平面内定位”与“纵深方向度量”解耦：网络主要解决二维关键点检测问题，三维深度信息则由硬件深度传感器提供，系统在推理后用几何反投影恢复三维坐标\cite{ARDepthData,HartleyZisserman2003MVG}。该策略在工程上还能避免体素化或显式三维回归带来的计算膨胀，从而更容易满足移动端实时运行约束。
+
+\section{相关工作}
+二维姿态估计常以热力图（heatmap）形式预测关键点位置，再通过峰值解析得到坐标\cite{Newell2016Hourglass,Wei2016CPM,Sun2019HRNet}。围绕移动端实时应用，轻量化骨干与端侧优化成为主流方向\cite{Howard2017MobileNets,Sandler2018MobileNetV2}；在系统层面，MediaPipe/BlazePose 等工作展示了端侧 30FPS 级人体姿态追踪的可行性\cite{Bazarevsky2020BlazePose}。
+
+在解码范式上，CenterNet 以对象中心点 + 属性回归的单阶段思想统一了检测与关键点回归，减少候选框枚举与后处理复杂度\cite{Zhou2019CenterNet}。PoseKit 受其启发，将人体中心作为锚点，并回归中心到各关节的偏移与细化量，从而在低分辨率输出上维持可观精度。
+
+在三维恢复方面，若设备提供稠密深度图（如 LiDAR/ToF），二维点可通过相机内参直接反投影到相机坐标系得到三维点，属于经典针孔相机几何\cite{HartleyZisserman2003MVG}。ARKit 为 iOS 提供了与图像帧对应的深度数据与置信度信息，便于在端侧实现 RGB-D 融合\cite{ARDepthData,ARFrameSceneDepth}。
+
+\section{方法}
+\subsection{系统概览}
+PoseKit 由三部分组成：（1）轻量级二维姿态网络，输入为归一化后的 RGB 图像；（2）图外解码器，在 CPU 上对网络输出热力图执行峰值解析并索引偏移张量；（3）三维恢复模块，利用与 RGB 对齐的深度图及相机内参，将二维关键点反投影为三维关节坐标\cite{ARDepthData,HartleyZisserman2003MVG}。
+
+\subsection{骨干网络与输出头}
+PoseKit 采用 MobileNetV2 风格骨干网络，由深度可分离卷积与倒残差块构成\cite{Sandler2018MobileNetV2,Howard2017MobileNets}。深度可分离卷积将标准卷积拆解为逐通道的空间卷积（depthwise）与 $1\times1$ 的通道混合（pointwise），在相同感受野下显著减少参数量与乘加运算\cite{Howard2017MobileNets,Chollet2017Xception}。倒残差结构通过“扩张--深度卷积--线性投影”的路径，在保持表达能力的同时降低内存访问压力\cite{Sandler2018MobileNetV2}。
+
+网络输出采用多分支头：关键点热力图 $\hat{\bm{H}}\in\mathbb{R}^{K\times h\times w}$、人体中心热力图 $\hat{\bm{C}}\in\mathbb{R}^{1\times h\times w}$、中心到关键点的粗偏移 $\hat{\bm{R}}\in\mathbb{R}^{2K\times h\times w}$，以及用于亚像素精化的局部偏移 $\hat{\bm{O}}\in\mathbb{R}^{2K\times h\times w}$。其中 $K$ 为关键点数量（默认 COCO 的 $K=17$）\cite{Lin2014COCO}。
+
+\subsection{图外解码与硬件友好性}
+在移动端推理框架中，动态索引与非连续控制流（如 argmax、gather）常难以高效映射到 NPU/ANE 的静态算子图，甚至触发回退与数据搬移开销\cite{CoreMLDocs,CoreMLToolsMLProgram}。因此 PoseKit 将峰值解析与动态索引置于图外：网络仅输出静态张量，应用侧在 CPU 上完成（1）中心热力图 argmax 得到中心点 $\bm{c}$；（2）在 $\bm{c}$ 处读取 $\hat{\bm{R}}$ 得到粗关节位置；（3）在粗关节格点处读取 $\hat{\bm{O}}$ 得到亚像素修正。该策略使部署模型保持简单、可被 Core ML 更充分地优化\cite{CoreMLDocs,coremltools,CoreMLToolsMLProgram}。
+
+\subsection{输入对齐与尺度归一化}
+为适配固定输入分辨率（例如 $192\times192$），系统将原图按长宽比等比例缩放，并采用 letterbox 填充到目标尺寸。设原图尺寸为 $(W,H)$，目标输入为 $(W_0,H_0)$，缩放比 $s=\min(W_0/W,\,H_0/H)$，缩放后尺寸 $(\lfloor sW\rfloor,\lfloor sH\rfloor)$，再在两侧填充得到输入。系统记录 $s$ 与填充偏移 $(p_x,p_y)$，以便将网络输出坐标映射回原图坐标系。
+
+深度图与 RGB 的空间对齐依赖平台提供的标定与同步机制。对于 iOS，ARKit 提供与图像帧对应的深度信息与置信度，使得在得到二维像素位置后可直接查询对应深度值\cite{ARDepthData,ARFrameSceneDepth}。
+
+\subsection{三维反投影}
+对每个二维关键点像素坐标 $(x,y)$，从深度图取得深度 $Z$（单位通常为米），并用相机内参 $(f_x,f_y,c_x,c_y)$ 将其反投影到相机坐标系\cite{HartleyZisserman2003MVG}：
+\begin{equation}
+X = Z\cdot \frac{x-c_x}{f_x},\quad
+Y = Z\cdot \frac{y-c_y}{f_y},\quad
+Z = Z.
+\end{equation}
+若深度置信度较低，则可采用邻域鲁棒统计（如中位数）或时序滤波以降低噪声；当深度缺失时系统可退化为仅输出二维姿态，或引入额外的单目深度估计模块，但后者会显著增加系统复杂度与端侧负担。
+
+\section{训练目标与优化}
+\subsection{数据集与增强}
+PoseKit 的二维姿态训练以 MS COCO 人体关键点数据集为基础\cite{Lin2014COCO}。训练样本通常以单人裁剪方式构造：对每个实例进行围绕人体的裁剪与尺度归一化，并生成中心点与关键点的监督信号。为提升鲁棒性，训练过程中引入随机翻转、随机缩放裁剪、边界填充与颜色扰动等增强操作，以覆盖多姿态尺度、视角与光照条件的变化。
+
+\subsection{多任务损失}
+关键点热力图监督采用加权均方误差。对关键点 $k$ 的真值热力图 $\bm{H}_k$（以二维高斯在关节处生成）与预测 $\hat{\bm{H}}_k$，定义
+\begin{equation}
+\mathcal{L}_{\text{hm}}
+=\sum_{k=1}^{K}\sum_{\bm{u}}
+w(\bm{u})\left(\hat{\bm{H}}_k(\bm{u})-\bm{H}_k(\bm{u})\right)^2,\quad
+w(\bm{u})=1+\alpha\,\bm{H}_k(\bm{u}),
+\end{equation}
+其中 $\bm{u}$ 为像素位置，$\alpha>0$ 用于缓解前景/背景不均衡。该思路与在密集预测中处理正负样本不平衡的 focal loss 动机一致\cite{Lin2017FocalLoss}，也与 CenterNet 的热力图建模范式相近\cite{Zhou2019CenterNet}。中心热力图损失 $\mathcal{L}_{\text{ctr}}$ 可用同形式定义。
+
+对粗偏移分支，记真值中心点（在输出分辨率下）为 $\bm{c}^\ast$，真值关节连续坐标为 $\bm{j}_k^\ast$，则中心到关节偏移真值为 $\bm{r}_k^\ast=\bm{j}_k^\ast-\bm{c}^\ast$。训练时在真值中心位置直接监督预测偏移：
+\begin{equation}
+\mathcal{L}_{\text{reg}}
+=\sum_{k=1}^{K}\left\|
+\hat{\bm{r}}_k(\bm{c}^\ast)-\bm{r}_k^\ast
+\right\|_1.
+\end{equation}
+为避免不可导的峰值选择，监督始终在 $\bm{c}^\ast$ 处施加，而非在预测中心处施加，这与基于点的检测/回归训练套路一致\cite{Zhou2019CenterNet}。
+
+对细化偏移分支，定义粗格点 $\bm{p}_k^\ast=\bm{c}^\ast+\lfloor \bm{r}_k^\ast \rfloor$，余量偏移 $\bm{o}_k^\ast=\bm{r}_k^\ast-\lfloor \bm{r}_k^\ast\rfloor$，则
+\begin{equation}
+\mathcal{L}_{\text{off}}
+=\sum_{k=1}^{K}\left\|
+\hat{\bm{o}}_k(\bm{p}_k^\ast)-\bm{o}_k^\ast
+\right\|_1.
+\end{equation}
+总损失为加权和
+\begin{equation}
+\mathcal{L}
+=\lambda_{\text{hm}}\mathcal{L}_{\text{hm}}
++\lambda_{\text{ctr}}\mathcal{L}_{\text{ctr}}
++\lambda_{\text{reg}}\mathcal{L}_{\text{reg}}
++\lambda_{\text{off}}\mathcal{L}_{\text{off}}
++\lambda_{\text{aux}}\mathcal{L}_{\text{aux}},
+\end{equation}
+其中 $\mathcal{L}_{\text{aux}}$ 可包含骨架一致性正则等辅助项，用以抑制不符合人体几何的预测。
+
+\section{端侧推理与部署}
+\subsection{异构计算划分}
+端侧推理延迟主要由卷积主干前向传播决定，适合交由 GPU/NPU 等加速单元执行；而热力图峰值解析、动态索引与少量后处理属于低算力但控制流不规则的操作，放在 CPU 端更直接且通常开销可忽略。这一加速器执行规则张量算子，CPU 执行非规则解码的拆分有助于减少跨单元同步与数据搬移，从而提高整体吞吐\cite{CoreMLDocs,CoreMLToolsMLProgram}。
+
+\subsection{工程实践}
+在 iOS 上，模型可由训练框架导出为 TorchScript，再通过 coremltools 转换为 Core ML 格式\cite{TorchScriptDocs,coremltools}。为提升端侧效率，可使用 ML Program 作为模型类型并采用 FP16 精度，以更好匹配 Apple Neural Engine 的执行特性与带宽约束\cite{CoreMLToolsMLProgram,MLNeuralEngineComputeDevice}。推理阶段通过 Core ML API 在后台线程执行网络前向，随后在 CPU 端解码输出并与 ARKit 提供的深度数据融合\cite{CoreMLDocs,ARDepthData,ARFrameSceneDepth}。
+
+\subsection{压缩与加速}
+PoseKit 的压缩可分为三类：首先，混合精度能显著降低权重与激活的存储与带宽开销；其次，可进一步采用量化感知训练或整数推理方案，减少端侧算术成本\cite{Jacob2018Quantization}；再次，可结合结构化剪枝与稀疏化以降低冗余连接，并在必要时进行微调恢复精度\cite{Han2016DeepCompression}。若需要更小模型，也可采用知识蒸馏，使学生网络学习 PoseKit 的输出分布或中间表征\cite{Hinton2015Distill}。
+
+\section{实验与讨论}
+二维精度可采用 COCO 关键点评测指标（AP 等）进行对齐比较\cite{Lin2014COCO}。系统端到端三维误差通常受深度传感器噪声、标定误差与遮挡影响更大，因此评测应同时报告二维定位误差、深度有效率（置信度门控后的可用比例）以及三维坐标误差分解。工程实践中还应关注热启动延迟、持续运行功耗与温控降频对帧率稳定性的影响。
+
+PoseKit 的局限性在于对深度传感器的依赖：当深度缺失或置信度低时，三维恢复会退化。跨平台部署时，网络部分可迁移到 ONNX 或 TensorFlow 系列推理栈\cite{Bai2019ONNX,Abadi2016TensorFlow}，并使用 Android NNAPI 获取硬件加速能力\cite{AndroidNNAPI}；但深度数据的获取与对齐需要依赖平台的相机/传感器 API 与标定质量。
+
+\section{结论}
+本文描述了 PoseKit 的端侧 RGB-D 三维姿态估计系统：以 MobileNetV2 风格轻量骨干实现高效二维关键点检测，通过图外解码提升部署图的静态可优化性，并借助深度传感器与相机几何反投影实现低成本三维恢复。该设计在移动端约束下兼顾实时性与工程可落地性，同时在缺少深度传感器或跨平台场景下也具有可控的退化与扩展路径。
+
+\bibliographystyle{unsrt}
+\bibliography{references}
+
+\end{document}

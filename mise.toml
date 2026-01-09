@@ -163,3 +163,7 @@ arg "<output>" help="Output path" default="{{config_root}}/PoseKitApp/Sources/Po
 '''
 dir = '{{config_root}}/PoseKitModel'
 run = 'xcrun coremlc compile "${usage_package?}" "${usage_out}"'
+
+[tasks.generate-paper]
+dir = '{{config_root}}/PoseKitPaper'
+run = 'latexmk -xelatex -interaction=nonstopmode -halt-on-error main.tex'
